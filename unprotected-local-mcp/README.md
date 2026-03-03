@@ -1,57 +1,31 @@
-# FusionAuth MCP Server Tutorial
+# Unprotected Local MCP Server
 
-A step-by-step tutorial for protecting an MCP (Model Context Protocol) server with FusionAuth OAuth.
+Starter code for the FusionAuth tutorial: [Protecting MCP Servers With FusionAuth OAuth](https://fusionauth.io/docs/extend/examples/protecting-mcp-servers).
 
-## Tutorial Structure
-
-This repository supports a hands-on tutorial where you'll add OAuth protection to an MCP server:
-
-- **Start here (main branch)**: Unprotected MCP server with a simple `get_name` tool
-- **Follow the tutorial**: Add OAuth protection step-by-step
-- **Reference (completed-app branch)**: Complete working implementation
-
-The tutorial walks you through adding:
-- FusionAuth OAuth configuration
-- Token validation via UserInfo endpoint
-- Custom scopes and consent flow
-- Client registration
-
-To see the completed implementation:
-```bash
-git checkout completed-app
-```
+This is a minimal MCP server with a single `get_name` tool and no authentication. Follow the tutorial to add OAuth protection step by step, or jump straight to the completed code in `../protected-local-mcp/`.
 
 ## Prerequisites
 
-- Node.js >= 20.18.1
 - Docker Desktop
-- Claude Desktop
+- Node.js >= 20.18.1
 - Python 3.12+
-- **FusionAuth Enterprise license** - Custom OAuth scopes require an Enterprise license. [Contact FusionAuth](https://fusionauth.io/pricing) to obtain a license key.
+- FusionAuth Essentials license (required for custom OAuth scopes)
 
-## Quick Start (Starter Code)
-
-This starter code gives you a working MCP server without authentication. You'll add OAuth protection as you follow the tutorial.
+## Quick Start
 
 ### 1. Configure your license
 
-Open `kickstart/kickstart.json` and replace `YOUR_LICENSE_KEY_HERE` with your FusionAuth Enterprise license key.
+Open `kickstart/kickstart.json` and replace `YOUR_LICENSE_KEY_HERE` with your FusionAuth Essentials license key.
 
-### 2. Start the Docker stack
+### 2. Start the stack
 
 ```bash
 docker compose up -d
 ```
 
-Wait about 30 seconds for all services to start. This includes:
-- FusionAuth (port 9011) - pre-configured via kickstart
-- MCP Server (port 8000) - unprotected starter version
-- PostgreSQL - FusionAuth database
-- OpenSearch - FusionAuth search engine
+Wait about 30 seconds for all services to start.
 
 ### 3. Test the unprotected server
-
-The MCP server is running but has no authentication. You can test it directly:
 
 ```bash
 curl -X POST http://localhost:8000/mcp \
@@ -68,29 +42,4 @@ curl -X POST http://localhost:8000/mcp \
   }'
 ```
 
-You should see:
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "Hello, World!"
-      }
-    ]
-  }
-}
-```
-
-### 4. Follow the tutorial
-
-Now you're ready to add OAuth protection! Follow the tutorial to:
-- Add token validation
-- Register Claude Desktop as a client
-- Test the protected server
-
-## Learn More
-
-See the full tutorial at [FusionAuth Documentation](https://fusionauth.io/docs) (link TBD)
+You should see `Hello, World!` in the response. Now follow the tutorial to add OAuth protection.

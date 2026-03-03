@@ -1,29 +1,21 @@
-# FusionAuth MCP Server Tutorial
+# Protected Local MCP Server
 
-A complete example of protecting an MCP (Model Context Protocol) server with FusionAuth OAuth.
+Completed code for the FusionAuth tutorial: [Protecting MCP Servers With FusionAuth OAuth](https://fusionauth.io/docs/extend/examples/protecting-mcp-servers).
 
-## What This Demo Shows
-
-- MCP server with a single `get_name` tool protected by OAuth
-- FusionAuth as the OAuth authorization server
-- Custom OAuth scope (`get_name`) with user consent
-- Token validation via UserInfo endpoint
-- Complete Docker Compose setup with kickstart configuration
-- Claude Desktop integration via mcp-remote
+This is a fully working MCP server with FusionAuth OAuth protection. The `get_name` tool requires a valid access token with the `get_name` scope and returns the authenticated user's name.
 
 ## Prerequisites
 
-- **Node.js >= 20.18.1**
-- **Docker Desktop**
-- **Claude Desktop**
-- **Python 3.12+**
-- **FusionAuth Enterprise license** - Custom OAuth scopes require an Enterprise license. [Contact FusionAuth](https://fusionauth.io/pricing) to obtain a license key.
+- Docker Desktop
+- Node.js >= 20.18.1
+- Python 3.12+
+- FusionAuth Essentials license (required for custom OAuth scopes)
 
 ## Quick Start
 
 ### 1. Configure your license
 
-Open `kickstart/kickstart.json` and replace `YOUR_LICENSE_KEY_HERE` with your FusionAuth Enterprise license key.
+Open `kickstart/kickstart.json` and replace `YOUR_LICENSE_KEY_HERE` with your FusionAuth Essentials license key.
 
 ### 2. Start the stack
 
@@ -31,9 +23,9 @@ Open `kickstart/kickstart.json` and replace `YOUR_LICENSE_KEY_HERE` with your Fu
 docker compose up -d
 ```
 
-Wait about 30 seconds for all services to be healthy.
+Wait about 30 seconds for all services to start.
 
-### 3. Register Claude Desktop as a client
+### 3. Register an MCP client
 
 ```bash
 cd setup
@@ -41,53 +33,17 @@ pip install -r requirements.txt
 python setup_clients.py
 ```
 
-Copy the client ID that's printed.
+Enter a name for your client (e.g. `Claude Desktop`) when prompted. Copy the configuration block that is printed.
 
-### 4. Configure Claude Desktop
+### 4. Configure your MCP client
 
-Open Claude Desktop and go to **Settings → Developer → Edit Config**.
+Add the configuration output from step 3 to your MCP client config file. For Claude Desktop, open Settings > Developer > Edit Config.
 
-Add this configuration (replace `YOUR_CLIENT_ID_HERE` with the client ID from step 3):
+### 5. Connect and authenticate
 
-```json
-{
-  "mcpServers": {
-    "fusionauth-mcp": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:8000/mcp",
-        "--allow-http",
-        "--static-oauth-client-info",
-        "{\"client_id\":\"YOUR_CLIENT_ID_HERE\"}"
-      ]
-    }
-  }
-}
-```
+Restart your MCP client. Your browser will open to FusionAuth's login page. Use the test credentials:
 
-### 5. Test the connection
-
-Restart Claude Desktop. Your browser will open to FusionAuth's login page.
-
-Login credentials:
 - Email: `test@example.com`
 - Password: `password`
 
-After granting consent, ask Claude: "What's my name?"
-
-## Branches
-
-- **main** - Starter code (unprotected MCP server) - follow the tutorial to add OAuth
-- **completed-app** - Complete implementation with OAuth protection
-
-## Architecture
-
-- **FusionAuth** (port 9011) - OAuth authorization server
-- **MCP Server** (port 8000) - Protected MCP server with `get_name` tool
-- **PostgreSQL** - FusionAuth database
-- **OpenSearch** - FusionAuth search engine
-
-## Learn More
-
-See the full tutorial at [FusionAuth Documentation](https://fusionauth.io/docs) (link TBD)
+After granting consent, ask your client: "What's my name?"
