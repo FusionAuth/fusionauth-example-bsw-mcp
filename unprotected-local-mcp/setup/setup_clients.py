@@ -7,7 +7,7 @@ authenticate against the MCP server. Run this script once for each MCP
 client you want to register.
 
 Usage:
-    python setup_clients.py [--fusionauth-url URL] [--api-key KEY]
+    python setup_clients.py [--fusionauth-url URL] [--api-key KEY] [--port PORT]
 """
 
 import argparse
@@ -15,126 +15,130 @@ import json
 import sys
 import uuid
 
-import requests
+from fusionauth.fusionauth_client import FusionAuthClient
 
 FUSIONAUTH_URL = "http://localhost:9011"
 API_KEY = "bf69486b-4733-4470-a592-f1bfce7af580"
-MCP_SERVER_APP_ID = "e9fdb985-9173-4e01-9d73-ac2d60d1dc8e"
+DEFAULT_PORT = 3334
+TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
 
-REDIRECT_URLS = [
-    "http://localhost:*/oauth/callback",
-    "http://127.0.0.1:*/oauth/callback",
-]
+CONNECTOR_UI_REDIRECT_URL = "https://claude.ai/api/mcp/auth_callback"
 
 
-def check_fusionauth(base_url: str, api_key: str) -> bool:
+def check_fusionauth(client: FusionAuthClient) -> bool:
     """Check if FusionAuth is running and the API key is valid."""
     try:
-        resp = requests.get(
-            f"{base_url}/api/status",
-            headers={"Authorization": api_key},
-        )
-        return resp.status_code == 200
-    except requests.ConnectionError:
+        response = client.retrieve_system_status()
+        return response.status == 200
+    except Exception:
         return False
 
 
-def create_scope(base_url: str, api_key: str, app_id: str) -> bool:
-    """Try to create the get_name custom scope on the MCP Server application."""
-    resp = requests.post(
-        f"{base_url}/api/application/{app_id}/scope",
-        headers={
-            "Authorization": api_key,
-            "Content-Type": "application/json",
-        },
-        json={
-            "scope": {
-                "name": "get_name",
-                "description": "Access the get_name tool to retrieve the authenticated user's name",
-                "defaultConsentMessage": "Allow this application to read your name",
-                "defaultConsentDetail": "This will share your display name with the requesting application.",
-                "required": True,
-            }
-        },
-    )
+def create_scope(client: FusionAuthClient, app_id: str) -> None:
+    """Try to create the get_name custom scope on the client application."""
+    response = client.create_o_auth_scope(app_id, {
+        "scope": {
+            "name": "get_name",
+            "description": "Access the get_name tool to retrieve the authenticated user's name",
+            "defaultConsentMessage": "Allow this application to read your name",
+            "defaultConsentDetail": "This will share your display name with the requesting application.",
+            "required": True,
+        }
+    })
 
-    if resp.status_code in (200, 201):
-        return True
-    elif resp.status_code == 400:
-        error_data = resp.json()
+    if response.status in (200, 201):
+        return
+    elif response.status == 400:
+        error_data = response.error_response or {}
         field_errors = error_data.get("fieldErrors", {})
         general_errors = error_data.get("generalErrors", [])
         if "scope.name" in field_errors:
             # Scope already exists, treat as success
-            return True
+            return
         for err in general_errors:
             if "license" in err.get("message", "").lower():
                 print("  Note: Custom scopes require a FusionAuth Essentials license.")
                 print("  The MCP server will still work, but without the custom 'get_name' scope.")
-                return False
-        print(f"  Failed to create scope: {resp.status_code}")
-        return False
+                return
+        print(f"  Failed to create scope: {response.status}")
     else:
-        print(f"  Failed to create scope: {resp.status_code}")
-        return False
+        print(f"  Failed to create scope: {response.status}")
 
 
+# tag::create-client-application
 def create_client_application(
-    base_url: str, api_key: str, client_name: str
+    client: FusionAuthClient, client_name: str, port: int, connector_ui: bool = False
 ) -> "dict | None":
     """Create an OAuth application in FusionAuth for an MCP client."""
     app_id = str(uuid.uuid4())
 
-    body = {
+    if connector_ui:
+        redirect_urls = [CONNECTOR_UI_REDIRECT_URL]
+        pkce_policy = "NotRequired"
+        client_auth_policy = "Required"
+        require_client_auth = True
+    else:
+        redirect_urls = [
+            f"http://localhost:{port}/oauth/callback",
+            f"http://127.0.0.1:{port}/oauth/callback",
+            f"http://localhost:{port}/callback",
+            f"http://127.0.0.1:{port}/callback",
+        ]
+        pkce_policy = "Required"
+        client_auth_policy = "NotRequiredWhenUsingPKCE"
+        require_client_auth = False
+
+    response = client.create_application({
         "application": {
             "name": client_name,
             "oauthConfiguration": {
-                "authorizedRedirectURLs": REDIRECT_URLS,
-                "authorizedURLValidationPolicy": "AllowWildcards",
-                "clientAuthenticationPolicy": "NotRequiredWhenUsingPKCE",
+                "authorizedRedirectURLs": redirect_urls,
+                "authorizedURLValidationPolicy": "ExactMatch",
+                "clientAuthenticationPolicy": client_auth_policy,
                 "enabledGrants": ["authorization_code", "refresh_token"],
                 "generateRefreshTokens": True,
-                "proofKeyForCodeExchangePolicy": "Required",
-                "requireClientAuthentication": False,
-                "scopeHandlingPolicy": "Compatibility",
-                "unknownScopePolicy": "Allow",
+                "proofKeyForCodeExchangePolicy": pkce_policy,
+                "requireClientAuthentication": require_client_auth,
+                "scopeHandlingPolicy": "Strict",
             },
         }
-    }
+    }, app_id)
 
-    resp = requests.post(
-        f"{base_url}/api/application/{app_id}",
-        headers={
-            "Authorization": api_key,
-            "Content-Type": "application/json",
-        },
-        json=body,
-    )
-
-    if resp.status_code in (200, 201):
-        app_data = resp.json()["application"]
-        return {
+    if response.status in (200, 201):
+        app_data = response.success_response["application"]
+        result = {
             "name": client_name,
             "client_id": app_data["id"],
         }
+        if connector_ui:
+            result["client_secret"] = app_data["oauthConfiguration"]["clientSecret"]
+        return result
     else:
-        print(f"  Failed to create {client_name}: {resp.status_code}")
+        print(f"  Failed to create {client_name}: {response.status}")
         return None
+# end::create-client-application
 
 
-def print_mcp_config(client_name: str, client_id: str, mcp_server_url: str):
+def print_mcp_config(client_name: str, client_id: str, mcp_server_url: str, port: int, client_secret: str = None):
     """Print the MCP client configuration for the user to add."""
+    if client_secret:
+        print(f"\n  Connector UI configuration for {client_name}:")
+        print(f"  URL:           {mcp_server_url}/mcp")
+        print(f"  Client Id:     {client_id}")
+        print(f"  Client Secret: {client_secret}")
+        print(f"\n  Enter these values in Settings -> Connectors in Claude Desktop or claude.ai.")
+        return
+
+    args = ["mcp-remote", f"{mcp_server_url}/mcp", str(port)]
+    if mcp_server_url.startswith("http://"):
+        args.append("--allow-http")
+    args += ["--static-oauth-client-info", f'{{"client_id":"{client_id}"}}']
+
     config = {
         "mcpServers": {
-            "fusionauth-mcp": {
+            "name-server": {
                 "command": "npx",
-                "args": [
-                    "mcp-remote",
-                    f"{mcp_server_url}/mcp",
-                    "--allow-http",
-                    "--static-oauth-client-info",
-                    f'{{"client_id":"{client_id}"}}'
-                ]
+                "args": args,
             }
         }
     }
@@ -162,22 +166,31 @@ def main():
         default="http://localhost:8000",
         help="MCP server URL (default: http://localhost:8000)",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"OAuth callback port for mcp-remote (default: {DEFAULT_PORT}). Change this if port {DEFAULT_PORT} is already in use on your machine.",
+    )
+    parser.add_argument(
+        "--connector-ui",
+        action="store_true",
+        help="Register for the Claude Desktop or claude.ai connector UI (uses https://claude.ai/api/mcp/auth_callback as redirect URL and outputs client secret)",
+    )
     args = parser.parse_args()
+
+    client = FusionAuthClient(args.api_key, args.fusionauth_url)
 
     print("FusionAuth MCP Client Setup")
     print("=" * 40)
 
     print(f"\nChecking FusionAuth at {args.fusionauth_url}...")
-    if not check_fusionauth(args.fusionauth_url, args.api_key):
+    if not check_fusionauth(client):
         print("Error: Cannot connect to FusionAuth. Is it running?")
         print(f"  URL: {args.fusionauth_url}")
         print("  Run 'docker compose up -d' first.")
         sys.exit(1)
     print("FusionAuth is running.")
-
-    # Try to create the custom scope on the MCP Server application
-    print("\nConfiguring MCP Server application scope...")
-    create_scope(args.fusionauth_url, args.api_key, MCP_SERVER_APP_ID)
 
     client_name = input("\nEnter a name for this MCP client (e.g. Claude Desktop): ").strip()
     if not client_name:
@@ -185,14 +198,23 @@ def main():
         sys.exit(0)
 
     print(f"\n  Creating {client_name}...")
-    result = create_client_application(args.fusionauth_url, args.api_key, client_name)
+    result = create_client_application(client, client_name, args.port, args.connector_ui)
 
     if result:
         print(f"  Created {result['name']} (Client Id: {result['client_id']})")
+        print("\n  Configuring scope...")
+        create_scope(client, result["client_id"])
+        try:
+            client.register(
+                {"registration": {"applicationId": result["client_id"]}},
+                TEST_USER_ID,
+            )
+        except Exception:
+            pass
         print("\n" + "=" * 40)
         print("Setup complete!")
         print("=" * 40)
-        print_mcp_config(result["name"], result["client_id"], args.mcp_server_url)
+        print_mcp_config(result["name"], result["client_id"], args.mcp_server_url, args.port, result.get("client_secret"))
 
         print("\n\nTest user credentials:")
         print("  Email: test@example.com")
