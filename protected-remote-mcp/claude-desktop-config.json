@@ -1,0 +1,14 @@
+"mcpServers": {
+    "name-server": {
+      "command": "npx",
+      "args": [
+        "mcp-remote@latest",
+        "http://localhost:8000/mcp",
+        "3334",
+        "--allow-http",
+        "--static-oauth-client-info",
+        "{\"client_id\":\"YOUR_CLIENT_ID_HERE\", \"scope\": \"openid profile email get_name\" }"
+      ]
+    }
+  },
+
