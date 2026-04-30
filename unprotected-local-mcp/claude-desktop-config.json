@@ -1,0 +1,12 @@
+"mcpServers": {
+    "name-server": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:8000/mcp",
+        "3334",
+        "--allow-http"
+      ]
+    }
+  },
+
