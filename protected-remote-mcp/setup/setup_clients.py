@@ -14,13 +14,14 @@ import argparse
 import json
 import sys
 import uuid
+import urllib.request
 
 from fusionauth.fusionauth_client import FusionAuthClient
 
 FUSIONAUTH_URL = "http://localhost:9011"
 API_KEY = None
 DEFAULT_PORT = 3334
-TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
+TEST_USER_ID = "b5d27d9d-8ce3-4950-ac73-60d47eceede4"
 
 CONNECTOR_UI_REDIRECT_URL = "https://claude.ai/api/mcp/auth_callback"
 
@@ -65,11 +66,32 @@ def create_scope(client: FusionAuthClient, app_id: str) -> None:
         print(f"  Failed to create scope: {response.status}")
 
 
+def patch_client_application_with_authorized_resource(app_id: str, fusionauth_url: str, api_key: str
+) -> "dict | None":
+    """Patch an OAuth application in FusionAuth for an MCP client."""
+    # special handling because client lib doesn't support feature yet
+
+    # PATCH with JSON
+    data = json.dumps({"application":{"oauthConfiguration":{"authorizedResourceUris": ["http://localhost:8000"]}}}).encode()
+    req = urllib.request.Request(
+        fusionauth_url + "/api/application/" + app_id,
+        data=data,
+        headers={"Content-Type": "application/json", "Authorization": api_key},
+        method="PATCH"
+    )
+    with urllib.request.urlopen(req) as response:
+        print(response.read().decode())
+
+    print("abc")
+
+
 def create_client_application(
     client: FusionAuthClient, client_name: str, port: int, connector_ui: bool = False
 ) -> "dict | None":
     """Create an OAuth application in FusionAuth for an MCP client."""
     app_id = str(uuid.uuid4())
+
+    relationship = "ThirdParty"
 
     if connector_ui:
         redirect_urls = [CONNECTOR_UI_REDIRECT_URL]
@@ -98,6 +120,7 @@ def create_client_application(
                 "generateRefreshTokens": True,
                 "proofKeyForCodeExchangePolicy": pkce_policy,
                 "requireClientAuthentication": require_client_auth,
+                "relationship": relationship,
                 "scopeHandlingPolicy": "Strict",
             },
         }
@@ -204,6 +227,7 @@ def main():
 
     print(f"\n  Creating {client_name}...")
     result = create_client_application(client, client_name, args.port, args.connector_ui)
+    patch_client_application_with_authorized_resource(result['client_id'],args.fusionauth_url, args.api_key)
 
     if result:
         print(f"  Created {result['name']} (Client Id: {result['client_id']})")
