@@ -1,8 +1,6 @@
 # Unprotected Local MCP Server
 
-Starter code for the FusionAuth tutorial: [Protecting MCP Servers With FusionAuth OAuth](https://fusionauth.io/docs/extend/examples/protecting-mcp-servers).
-
-This is a minimal MCP server with a single `get_name` tool and no authentication. Follow the tutorial to add OAuth protection step by step, or jump straight to the completed code in `../protected-local-mcp/`.
+This is a minimal MCP server with a single `get_name` tool and no authentication.
 
 ## Prerequisites
 
@@ -42,4 +40,4 @@ curl -X POST http://localhost:8000/mcp \
   }'
 ```
 
-You should see `Hello, World!` in the response. Now follow the tutorial to add OAuth protection.
+You should see `Hello, World!` in the response.
