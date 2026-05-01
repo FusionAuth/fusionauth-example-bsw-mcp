@@ -1,8 +1,6 @@
 # Protected Remote MCP Server
 
-Remote deployment variant for the FusionAuth tutorial: [Protecting MCP Servers With FusionAuth OAuth](https://fusionauth.io/docs/extend/examples/protecting-mcp-servers).
-
-This folder contains only the MCP server. It is intended for use with an existing FusionAuth instance. The setup script includes `--fusionauth-url`, `--api-key`, `--tenant-id`, and `--connector-ui` flags for remote deployments.
+This folder contains only the MCP server. It is intended for use with an existing FusionAuth instance. The setup script includes `--fusionauth-url`, `--email-address`, `--api-key`, `--tenant-id`, and `--connector-ui` flags for remote deployments.
 
 ## Prerequisites
 
@@ -38,6 +36,7 @@ python setup_clients.py \
   --fusionauth-url https://auth.example.com \
   --api-key YOUR_API_KEY \
   --mcp-server-url https://mcp.example.com
+  --email-address your-user@example.com
 ```
 
 If your FusionAuth instance has multiple tenants, add `--tenant-id YOUR_TENANT_ID`.
@@ -54,4 +53,4 @@ python setup_clients.py \
 
 ### 3. Connect your MCP client
 
-Use the configuration output from step 2. See the full tutorial for client-specific instructions.
+Use the configuration output from step 2.
