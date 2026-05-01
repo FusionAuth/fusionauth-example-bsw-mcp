@@ -172,7 +172,7 @@ def print_mcp_config(client_name: str, client_id: str, mcp_server_url: str, port
 
     config = {
         "mcpServers": {
-            "name-server": {
+            "protected-name-server": {
                 "command": "npx",
                 "args": args,
             }
