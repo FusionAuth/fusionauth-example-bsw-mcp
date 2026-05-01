@@ -1,5 +1,5 @@
 "mcpServers": {
-    "name-server": {
+    "protected-name-server": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",

@@ -1,5 +1,5 @@
 "mcpServers": {
-    "name-server": {
+    "open-name-server": {
       "command": "npx",
       "args": [
         "mcp-remote",
