@@ -165,7 +165,7 @@ def print_mcp_config(client_name: str, client_id: str, mcp_server_url: str, port
         print(f"\n  Enter these values in Settings -> Connectors in Claude Desktop or claude.ai.")
         return
 
-    args = ["mcp-remote", f"{mcp_server_url}/mcp", str(port)]
+    args = ["mcp-remote@latest", f"{mcp_server_url}/mcp", str(port)]
     if mcp_server_url.startswith("http://"):
         args.append("--allow-http")
     args += ["--static-oauth-client-info", f'{{"client_id":"{client_id}","scope":"openid profile get_name"}}']
