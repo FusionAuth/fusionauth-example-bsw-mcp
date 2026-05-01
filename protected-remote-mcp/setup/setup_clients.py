@@ -72,7 +72,7 @@ def patch_client_application_with_authorized_resource(app_id: str, fusionauth_ur
     # special handling because client lib doesn't support feature yet
 
     # PATCH with JSON
-    data = json.dumps({"application":{"oauthConfiguration":{"authorizedResourceUris": ["http://localhost:8000"]}}}).encode()
+    data = json.dumps({"application":{"oauthConfiguration":{"authorizedResourceUris": ["http://localhost:8000/mcp"]}}}).encode()
     req = urllib.request.Request(
         fusionauth_url + "/api/application/" + app_id,
         data=data,
@@ -84,6 +84,21 @@ def patch_client_application_with_authorized_resource(app_id: str, fusionauth_ur
 
     print("abc")
 
+
+def find_user_id(
+    client: FusionAuthClient, email_address: str
+) -> "dict | None":
+    """Find user id"""
+    print(email_address)
+    result = client.retrieve_user_by_email(email_address)
+
+    if result.was_successful():
+        print("success")
+        print(result.success_response["user"]["id"])
+        return result.success_response["user"]["id"]
+    elif result.status == 404:
+        print("failure")
+        return None  # User not found
 
 def create_client_application(
     client: FusionAuthClient, client_name: str, port: int, connector_ui: bool = False
@@ -153,7 +168,7 @@ def print_mcp_config(client_name: str, client_id: str, mcp_server_url: str, port
     args = ["mcp-remote", f"{mcp_server_url}/mcp", str(port)]
     if mcp_server_url.startswith("http://"):
         args.append("--allow-http")
-    args += ["--static-oauth-client-info", f'{{"client_id":"{client_id}"}}']
+    args += ["--static-oauth-client-info", f'{{"client_id":"{client_id}","scope":"openid profile get_name"}}']
 
     config = {
         "mcpServers": {
@@ -199,6 +214,11 @@ def main():
         help="FusionAuth tenant Id (required for multi-tenant instances)",
     )
     parser.add_argument(
+        "--email-address",
+        default="test@example.com",
+        help="The email address to use to log in",
+    )
+    parser.add_argument(
         "--connector-ui",
         action="store_true",
         help="Register for the Claude Desktop or claude.ai connector UI (uses https://claude.ai/api/mcp/auth_callback as redirect URL and outputs client secret)",
@@ -233,10 +253,14 @@ def main():
         print(f"  Created {result['name']} (Client Id: {result['client_id']})")
         print("\n  Configuring scope...")
         create_scope(client, result["client_id"])
+        print("\n  Finding userid...")
+        user_id = find_user_id(client, args.email_address)
+        print(user_id)
+  
         try:
             client.register(
                 {"registration": {"applicationId": result["client_id"]}},
-                TEST_USER_ID,
+                user_id,
             )
         except Exception:
             pass
@@ -246,8 +270,8 @@ def main():
         print_mcp_config(result["name"], result["client_id"], args.mcp_server_url, args.port, result.get("client_secret"))
 
         print("\n\nTest user credentials:")
-        print("  Email: test@example.com")
-        print("  Password: password")
+        print("  Email: " + args.email_address)
+        print("  Password: BSWrocks")
     else:
         print("\nClient was not created.")
 
